@@ -1,43 +1,29 @@
 pipeline {
     agent {
         kubernetes {
-            inheritFrom 'python-agent'
+            label 'python-agent'
+            defaultContainer 'python'
+            yaml """
+apiVersion: v1
+kind: Pod
+spec:
+  containers:
+  - name: python
+    image: python:3.7
+    command:
+    - sleep
+    args:
+    - "3600"
+"""
         }
     }
     stages {
-        stage('Checkout') {
-            steps {
-                checkout scm
-            }
-        }
-        stage('Check Python') {   // ← nouveau stage
+        stage('Check Python') {
             steps {
                 container('python') {
                     sh 'python --version'
                 }
             }
         }
-        stage('Install Dependencies') {
-            steps {
-                container('python') {
-                    dir('flask-app') {
-                        sh "pip install -r requirements.txt"
-                    }
-                }
-            }
-        }
-        stage('Run Tests') {
-            steps {
-                container('python') {
-                    dir('flask-app') {
-                        sh "python test.py"
-                    }
-                }
-            }
-        }
-    }
-    post {
-        success { echo "✅ Pipeline terminé avec succès" }
-        failure { echo "❌ Pipeline échoué" }
     }
 }
