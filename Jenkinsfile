@@ -1,49 +1,33 @@
-pipeline {
-    agent {
+pipeline { 
+    agent { 
         kubernetes {
-            inheritFrom 'python-agent'   // nom du pod template défini dans Jenkins
+            label 'jenkins-agent-my-app'
+            yaml """
+apiVersion: v1
+kind: Pod
+metadata:
+  labels:
+    component: ci
+spec:
+  containers:
+    - name: python
+      image: python:3.7
+      command:
+        - cat
+      tty: true
+"""
         }
     }
-
-    stages {
-
-        stage('Checkout') {
-            steps {
-                echo "=== Récupération du code depuis Git ==="
-                checkout scm
-            }
-        }
-
-        stage('Install Dependencies') {
-            steps {
+    stages { 
+        stage('Test python') { 
+            steps { 
                 container('python') {
-                    echo "=== Installation des dépendances Python ==="
-                    dir('flask-app') {
+                    dir('flask-app') {   // 🔑 spécifie le sous-dossier où sont les fichiers
                         sh "pip install -r requirements.txt"
-                    }
-                }
-            }
-        }
-
-        stage('Run Tests') {
-            steps {
-                container('python') {
-                    echo "=== Lancement des tests Python ==="
-                    dir('flask-app') {
                         sh "python test.py"
                     }
                 }
-            }
-        }
-
-    }
-
-    post {
-        success {
-            echo "✅ Pipeline terminé avec succès"
-        }
-        failure {
-            echo "❌ Pipeline échoué, vérifier les logs"
-        }
-    }
+            } 
+        } 
+    } 
 }
