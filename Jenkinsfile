@@ -10,6 +10,13 @@ pipeline {
                 checkout scm
             }
         }
+        stage('Check Python') {   // ← nouveau stage
+            steps {
+                container('python') {
+                    sh 'python --version'
+                }
+            }
+        }
         stage('Install Dependencies') {
             steps {
                 container('python') {
