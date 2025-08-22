@@ -15,6 +15,10 @@ spec:
       command:
         - cat
       tty: true
+      volumeMounts:
+        - mountPath: /home/jenkins/agent
+          name: workspace-volume
+          readOnly: false
     - name: docker
       image: docker
       command:
@@ -23,10 +27,14 @@ spec:
       volumeMounts:
         - mountPath: /var/run/docker.sock
           name: docker-sock
+        - mountPath: /home/jenkins/agent
+          name: workspace-volume
   volumes:
     - name: docker-sock
       hostPath:
         path: /var/run/docker.sock
+    - name: workspace-volume
+      emptyDir: {}
 """
     }
   }
@@ -48,7 +56,8 @@ spec:
     stage('Build image') {
       steps {
         container('docker') {
-          sh "docker build -t localhost:4000/pythontest:latest ."
+          // Construire et pousser l'image avec le Dockerfile dans flask_app
+          sh "docker build -f flask_app/Dockerfile -t localhost:4000/pythontest:latest flask_app"
           sh "docker push localhost:4000/pythontest:latest"
         }
       }
