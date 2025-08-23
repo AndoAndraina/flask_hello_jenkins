@@ -18,7 +18,6 @@ spec:
       volumeMounts:
         - mountPath: /home/jenkins/agent
           name: workspace-volume
-
     - name: docker
       image: docker:24.0-dind
       securityContext:
@@ -31,7 +30,6 @@ spec:
           name: docker-sock
         - mountPath: /home/jenkins/agent
           name: workspace-volume
-
     - name: kubectl
       image: lachlanevenson/k8s-kubectl:latest
       command:
@@ -40,7 +38,6 @@ spec:
       volumeMounts:
         - mountPath: /home/jenkins/agent
           name: workspace-volume
-
   volumes:
     - name: docker-sock
       hostPath:
@@ -52,23 +49,22 @@ spec:
     }
 
     triggers {
-        pollSCM('* * * * *')  // Vérifie les changements chaque minute
+        pollSCM('* * * * *')
     }
 
     stages {
-
-        stage('Test Python') {
+        stage('Test python') {
             steps {
                 container('python') {
                     script {
                         if (fileExists('requirements.txt')) {
-                            sh "pip install -r requirements.txt"
+                            sh 'pip install -r requirements.txt'
                         } else {
                             echo 'requirements.txt absent, on continue'
                         }
 
                         if (fileExists('test.py')) {
-                            sh "python test.py"
+                            sh 'python test.py'
                         } else {
                             echo 'test.py absent, on continue'
                         }
@@ -77,20 +73,22 @@ spec:
             }
         }
 
-        stage('Build and Push Docker Image') {
+        stage('Build image') {
             steps {
                 container('docker') {
-                    sh """
-                    docker build -f flask_app/Dockerfile -t localhost:4000/pythontest:latest flask_app
-                    docker push localhost:4000/pythontest:latest
-                    """
+                    sh 'docker build -f flask_app/Dockerfile -t localhost:4000/pythontest:latest flask_app'
+                    sh 'docker push localhost:4000/pythontest:latest'
                 }
             }
         }
 
-        stage('Deploy to Kubernetes') {
+        stage('Deploy') {
             steps {
                 container('kubectl') {
-                    sh """
-                    kubectl apply -f ./kubernetes/deployment.yaml
-                    kubectl apply -f ./ku
+                    sh 'kubectl apply -f ./kubernetes/deployment.yaml'
+                    sh 'kubectl apply -f ./kubernetes/service.yaml'
+                }
+            }
+        }
+    }
+}
