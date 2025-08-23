@@ -20,7 +20,7 @@ spec:
           name: workspace-volume
           readOnly: false
     - name: docker
-      image: docker
+      image: docker:24.0-dind
       command:
         - cat
       tty: true
@@ -30,7 +30,7 @@ spec:
         - mountPath: /home/jenkins/agent
           name: workspace-volume
     - name: kubectl
-      image: bitnami/kubectl:1.27-debian-11-r0   # version avec /bin/sh
+      image: bitnami/kubectl:1.27
       command:
         - cat
       tty: true
@@ -55,8 +55,18 @@ spec:
     stage('Test python') {
       steps {
         container('python') {
-          sh "pip install -r requirements.txt || echo 'requirements.txt absent, on continue'"
-          sh "python test.py || echo 'test.py absent, on continue'"
+          script {
+            if (fileExists('requirements.txt')) {
+              sh "pip install -r requirements.txt"
+            } else {
+              echo "requirements.txt absent, on continue"
+            }
+            if (fileExists('test.py')) {
+              sh "python test.py"
+            } else {
+              echo "test.py absent, on continue"
+            }
+          }
         }
       }
     }
