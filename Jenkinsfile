@@ -58,13 +58,16 @@ spec:
             steps {
                 container('python') {
                     script {
-                        if (fileExists('requirements.txt')) {
-                            echo "requirements.txt found, running tests..."
+                        if (fileExists('flask_app/requirements.txt')) {
+                            echo "requirements.txt found, installing dependencies..."
+                            sh 'pip install -r flask_app/requirements.txt'
                         } else {
                             echo "requirements.txt absent, continuing..."
                         }
-                        if (fileExists('test.py')) {
+
+                        if (fileExists('flask_app/test.py')) {
                             echo "test.py found, running test..."
+                            sh 'python flask_app/test.py'
                         } else {
                             echo "test.py absent, continuing..."
                         }
