@@ -12,21 +12,20 @@ spec:
   containers:
     - name: python
       image: python:3.7
-      imagePullPolicy: IfNotPresent
       command:
         - cat
       tty: true
       volumeMounts:
         - mountPath: /home/jenkins/agent
           name: workspace-volume
-          readOnly: false
 
     - name: docker
       image: docker:24.0-dind
-      imagePullPolicy: IfNotPresent
       command:
         - cat
       tty: true
+      securityContext:
+        privileged: true
       volumeMounts:
         - mountPath: /var/run/docker.sock
           name: docker-sock
@@ -35,7 +34,6 @@ spec:
 
     - name: kubectl
       image: lachlanevenson/k8s-kubectl:latest
-      imagePullPolicy: IfNotPresent
       command:
         - cat
       tty: true
@@ -54,7 +52,7 @@ spec:
   }
 
   triggers {
-    pollSCM('* * * * *')  // Vérifie les changements chaque minute
+    pollSCM('* * * * *')
   }
 
   stages {
@@ -63,15 +61,15 @@ spec:
         container('python') {
           script {
             if (fileExists('requirements.txt')) {
-              sh "pip install -r requirements.txt"
+              sh 'pip install -r requirements.txt'
             } else {
-              echo "requirements.txt absent, on continue"
+              echo 'requirements.txt absent, on continue'
             }
 
             if (fileExists('test.py')) {
-              sh "python test.py"
+              sh 'python test.py'
             } else {
-              echo "test.py absent, on continue"
+              echo 'test.py absent, on continue'
             }
           }
         }
@@ -81,8 +79,8 @@ spec:
     stage('Build image') {
       steps {
         container('docker') {
-          sh "docker build -f flask_app/Dockerfile -t localhost:4000/pythontest:latest flask_app"
-          sh "docker push localhost:4000/pythontest:latest"
+          sh 'docker build -f flask_app/Dockerfile -t localhost:4000/pythontest:latest flask_app'
+          sh 'docker push localhost:4000/pythontest:latest'
         }
       }
     }
@@ -90,8 +88,8 @@ spec:
     stage('Deploy') {
       steps {
         container('kubectl') {
-          sh "kubectl apply -f ./kubernetes/deployment.yaml"
-          sh "kubectl apply -f ./kubernetes/service.yaml"
+          sh 'kubectl apply -f ./kubernetes/deployment.yaml'
+          sh 'kubectl apply -f ./kubernetes/service.yaml'
         }
       }
     }
