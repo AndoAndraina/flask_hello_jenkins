@@ -30,7 +30,7 @@ spec:
         - mountPath: /home/jenkins/agent
           name: workspace-volume
     - name: kubectl
-      image: bitnami/kubectl:1.27   # correspond à ton cluster
+      image: bitnami/kubectl:1.27-debian-11-r0   # version avec /bin/sh
       command:
         - cat
       tty: true
