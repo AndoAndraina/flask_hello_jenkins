@@ -29,6 +29,14 @@ spec:
           name: docker-sock
         - mountPath: /home/jenkins/agent
           name: workspace-volume
+    - name: kubectl
+      image: bitnami/kubectl:1.27   # correspond à ton cluster
+      command:
+        - cat
+      tty: true
+      volumeMounts:
+        - mountPath: /home/jenkins/agent
+          name: workspace-volume
   volumes:
     - name: docker-sock
       hostPath:
@@ -56,9 +64,17 @@ spec:
     stage('Build image') {
       steps {
         container('docker') {
-          // Construire et pousser l'image avec le Dockerfile dans flask_app
           sh "docker build -f flask_app/Dockerfile -t localhost:4000/pythontest:latest flask_app"
           sh "docker push localhost:4000/pythontest:latest"
+        }
+      }
+    }
+
+    stage('Deploy') {
+      steps {
+        container('kubectl') {
+          sh "kubectl apply -f ./kubernetes/deployment.yaml"
+          sh "kubectl apply -f ./kubernetes/service.yaml"
         }
       }
     }
