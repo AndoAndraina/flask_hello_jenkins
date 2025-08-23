@@ -2,91 +2,97 @@ pipeline {
     agent {
         kubernetes {
             label 'jenkins-agent-my-app'
+            serviceAccount 'jenkins-sa'
+            defaultContainer 'python'
             yaml """
 apiVersion: v1
 kind: Pod
-metadata:
-  labels:
-    component: ci
 spec:
   containers:
-    - name: python
-      image: python:3.7
-      command:
-        - cat
-      tty: true
-      volumeMounts:
-        - mountPath: /home/jenkins/agent
-          name: workspace-volume
-    - name: docker
-      image: docker:24.0-dind
-      securityContext:
-        privileged: true
-      command:
-        - cat
-      tty: true
-      volumeMounts:
-        - mountPath: /var/run/docker.sock
-          name: docker-sock
-        - mountPath: /home/jenkins/agent
-          name: workspace-volume
-    - name: kubectl
-      image: lachlanevenson/k8s-kubectl:latest
-      command:
-        - cat
-      tty: true
-      volumeMounts:
-        - mountPath: /home/jenkins/agent
-          name: workspace-volume
+  - name: python
+    image: python:3.7
+    command:
+    - cat
+    tty: true
+  - name: docker
+    image: docker:24.0-dind
+    command:
+    - cat
+    tty: true
+    securityContext:
+      privileged: true
+    volumeMounts:
+    - mountPath: /var/run/docker.sock
+      name: docker-sock
+  - name: kubectl
+    image: lachlanevenson/k8s-kubectl:latest
+    command:
+    - cat
+    tty: true
   volumes:
-    - name: docker-sock
-      hostPath:
-        path: /var/run/docker.sock
-    - name: workspace-volume
-      emptyDir: {}
+  - hostPath:
+      path: /var/run/docker.sock
+    name: docker-sock
 """
         }
     }
 
-    triggers {
-        pollSCM('* * * * *')
+    environment {
+        REGISTRY = "localhost:4000"
+        IMAGE_NAME = "pythontest"
+        KUBE_DEPLOYMENT = "./kubernetes/deployment.yaml"
     }
 
     stages {
-        stage('Test python') {
+        stage('Checkout SCM') {
+            steps {
+                checkout([$class: 'GitSCM',
+                          branches: [[name: '*/master']],
+                          doGenerateSubmoduleConfigurations: false,
+                          extensions: [],
+                          userRemoteConfigs: [[url: 'git@github.com:AndoAndraina/flask_hello_jenkins.git', credentialsId: 'Ssh-git']]])
+            }
+        }
+
+        stage('Test Python') {
             steps {
                 container('python') {
                     script {
                         if (fileExists('requirements.txt')) {
-                            sh 'pip install -r requirements.txt'
+                            echo "requirements.txt found, running tests..."
                         } else {
-                            echo 'requirements.txt absent, on continue'
+                            echo "requirements.txt absent, continuing..."
                         }
-
                         if (fileExists('test.py')) {
-                            sh 'python test.py'
+                            echo "test.py found, running test..."
                         } else {
-                            echo 'test.py absent, on continue'
+                            echo "test.py absent, continuing..."
                         }
                     }
                 }
             }
         }
 
-        stage('Build image') {
+        stage('Build Docker Image') {
             steps {
                 container('docker') {
-                    sh 'docker build -f flask_app/Dockerfile -t localhost:4000/pythontest:latest flask_app'
-                    sh 'docker push localhost:4000/pythontest:latest'
+                    sh "docker build -f flask_app/Dockerfile -t ${REGISTRY}/${IMAGE_NAME}:latest flask_app"
                 }
             }
         }
 
-        stage('Deploy') {
+        stage('Push Docker Image') {
+            steps {
+                container('docker') {
+                    sh "docker push ${REGISTRY}/${IMAGE_NAME}:latest"
+                }
+            }
+        }
+
+        stage('Deploy to Kubernetes') {
             steps {
                 container('kubectl') {
-                    sh 'kubectl apply -f ./kubernetes/deployment.yaml'
-                    sh 'kubectl apply -f ./kubernetes/service.yaml'
+                    sh "kubectl apply -f ${KUBE_DEPLOYMENT}"
                 }
             }
         }
