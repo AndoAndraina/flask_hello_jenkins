@@ -12,6 +12,7 @@ spec:
   containers:
     - name: python
       image: python:3.7
+      imagePullPolicy: IfNotPresent
       command:
         - cat
       tty: true
@@ -19,8 +20,10 @@ spec:
         - mountPath: /home/jenkins/agent
           name: workspace-volume
           readOnly: false
+
     - name: docker
       image: docker:24.0-dind
+      imagePullPolicy: IfNotPresent
       command:
         - cat
       tty: true
@@ -29,14 +32,17 @@ spec:
           name: docker-sock
         - mountPath: /home/jenkins/agent
           name: workspace-volume
+
     - name: kubectl
-      image: bitnami/kubectl:1.27
+      image: lachlanevenson/k8s-kubectl:latest
+      imagePullPolicy: IfNotPresent
       command:
         - cat
       tty: true
       volumeMounts:
         - mountPath: /home/jenkins/agent
           name: workspace-volume
+
   volumes:
     - name: docker-sock
       hostPath:
@@ -48,7 +54,7 @@ spec:
   }
 
   triggers {
-    pollSCM('* * * * *')
+    pollSCM('* * * * *')  // Vérifie les changements chaque minute
   }
 
   stages {
@@ -61,6 +67,7 @@ spec:
             } else {
               echo "requirements.txt absent, on continue"
             }
+
             if (fileExists('test.py')) {
               sh "python test.py"
             } else {
