@@ -12,18 +12,15 @@ spec:
   containers:
     - name: python
       image: python:3.7
-      imagePullPolicy: IfNotPresent
       command:
         - cat
       tty: true
       volumeMounts:
         - mountPath: /home/jenkins/agent
           name: workspace-volume
-          readOnly: false
 
     - name: docker
       image: docker:24.0-dind
-      imagePullPolicy: IfNotPresent
       securityContext:
         privileged: true
       command:
@@ -37,7 +34,6 @@ spec:
 
     - name: kubectl
       image: lachlanevenson/k8s-kubectl:latest
-      imagePullPolicy: IfNotPresent
       command:
         - cat
       tty: true
@@ -56,13 +52,45 @@ spec:
     }
 
     triggers {
-        pollSCM('* * * * *') // vérifie les changements chaque minute
+        pollSCM('* * * * *')  // Vérifie les changements chaque minute
     }
 
     stages {
+
         stage('Test Python') {
             steps {
                 container('python') {
                     script {
                         if (fileExists('requirements.txt')) {
-                            sh 'pip
+                            sh "pip install -r requirements.txt"
+                        } else {
+                            echo 'requirements.txt absent, on continue'
+                        }
+
+                        if (fileExists('test.py')) {
+                            sh "python test.py"
+                        } else {
+                            echo 'test.py absent, on continue'
+                        }
+                    }
+                }
+            }
+        }
+
+        stage('Build and Push Docker Image') {
+            steps {
+                container('docker') {
+                    sh """
+                    docker build -f flask_app/Dockerfile -t localhost:4000/pythontest:latest flask_app
+                    docker push localhost:4000/pythontest:latest
+                    """
+                }
+            }
+        }
+
+        stage('Deploy to Kubernetes') {
+            steps {
+                container('kubectl') {
+                    sh """
+                    kubectl apply -f ./kubernetes/deployment.yaml
+                    kubectl apply -f ./ku
